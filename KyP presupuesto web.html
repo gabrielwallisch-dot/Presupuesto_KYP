@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presupuestar Trabajo - Amoblamientos K&P</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script> <!-- Para PDF -->
+    <style>
+        /* Tema Oscuro y Colores de Carpintería Moderna */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #121212;
+            color: #FFFFFF;
+            line-height: 1.6;
+            font-size: 16px; /* Aumentado para mejor legibilidad */
+        }
+        h1, h2, h3 {
+            color: #FFFFFF;
+            text-align: center;
+        }
+        form {
+            max-width: 600px;
+            margin: auto;
+            background-color: #1E1E1E;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #333333;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column; /* Para mejor apilamiento en móvil */
+        }
+        label {
+            display: block;
+            margin-top: 15px;
+            color: #FFFFFF;
+            font-weight: 500;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            background-color: #2A2A2A;
+            color: #FFFFFF;
+            border: 1px solid #555555;
+            border-radius: 4px;
+            font-size: 16px; /* Aumentado para móvil */
+            box-sizing: border-box; /* Para que el padding no afecte el ancho */
+        }
+        input:focus, select:focus {
+            border-color: #8B4513;
+            outline: none;
+        }
+        button {
+            margin-top: 20px;
+            padding: 12px 20px;
+            background-color: #8B4513;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin-right: 10px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #A0522D;
+        }
+        #resultado {
+            margin-top: 30px;
+            padding: 20px;
+            border: 1px solid #333333;
+            background-color: #1E1E1E;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+        }
+        .error {
+            color: #FF6B6B;
+            font-weight: bold;
+        }
+        img {
+            max-width: 150px;
+            margin-bottom: 10px;
+        }
+        .insumo-item {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap; /* Para móvil */
+        }
+        .insumo-item input {
+            flex: 1;
+            min-width: 120px; /* Para evitar que se encojan demasiado */
+        }
+        .remove-btn {
+            background-color: #FF6B6B;
+            color: #FFFFFF;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .remove-btn:hover {
+            background-color: #CC5555;
+        }
+        
+        /* Media query para móviles */
+        @media (max-width: 600px) {
+            body {
+                margin: 10px;
+                font-size: 14px; /* Ligeramente menor en móvil para caber mejor */
+            }
+            form {
+                padding: 15px;
+            }
+            h1 {
+                font-size: 24px;
+            }
+            h2 {
+                font-size: 20px;
+            }
+            button {
+                font-size: 14px;
+                padding: 10px 15px;
+            }
+            .insumo-item {
+                flex-direction: column; /* Apila verticalmente en móvil */
+                gap: 5px;
+            }
+            .insumo-item input {
+                min-width: unset; /* Permite que se ajusten */
+            }
+        }
+        
+        /* Estilos para impresión (ticket) */
+        @media print {
+            body * { visibility: hidden; color: #000000 !important; background: #FFFFFF !important; }
+            #ticketInterno, #ticketCliente, #ticketInterno *, #ticketCliente * { visibility: visible; color: #000000 !important; background: #FFFFFF !important; }
+            #ticketInterno, #ticketCliente { position: absolute; left: 0; top: 0; width: 100%; font-size: 16px; /* Aumentado */ border: none; background: #FFFFFF !important; padding: 10px; }
+            button { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Presupuestar Trabajo - Amoblamientos K&P</h1>
+    <p style="text-align: center; color: #CCCCCC;">Ingresa los datos del trabajo para calcular el presupuesto.</p>
+    
+    <form id="formulario">
+        <h2>1) Datos del trabajo:</h2>
+        <label>Nombre del Cliente: <input type="text" id="cliente" placeholder="Opcional"></label>
+        <label>Tipo: <input type="text" id="tipo" required></label>
+        <label>Medidas (cm) o m²: ancho x alto x prof / o m²: <input type="text" id="medidas" required></label>
+        <label>Material: <select id="material" required>
+            <option value="melamina">Melamina</option>
+            <option value="pino">Pino</option>
+            <option value="terciado">Terciado</option>
+        </select></label>
+        <label>Precio placa (unidad) y cantidad (ej. 100000 × 2 o 100000 x 2): <input type="text" id="precioPlaca" placeholder="ej. 100000 × 2" required></label>
+        
+        <h2>2) Insumos Fijos:</h2>
+        <label>Tornillos: <input type="number" id="tornillos" step="0.01"></label>
+        <label>Cazoletas: <input type="number" id="cazoletas" step="0.01"></label>
+        <label>Tapa tornillos: <input type="number" id="tapaTornillos" step="0.01"></label>
+        <label>Push open: <input type="number" id="pushOpen" step="0.01"></label>
+        <label>Otros: <input type="number" id="otrosInsumos" step="0.01"></label>
+        
+        <h2>3) Insumos Dinámicos (Agrega los que necesites):</h2>
+        <div id="insumosDinamicos"></div>
+        <button type="button" onclick="agregarInsumo()">Agregar Insumo</button>
+        
+        <label>Flete compra (aserradero): <input type="number" id="fleteCompra" step="0.01"></label>
+        <label>Diseño (si aplica): <input type="number" id="diseno" step="0.01"></label>
+        <label>Flete/colocación al cliente (si aplica): <input type="number" id="fleteCliente" step="0.01"></label>
+        <label>Cantidad puertas: <input type="number" id="puertas" min="0"></label>
+        <label>Cantidad cajones: <input type="number" id="cajones" min="0"></label>
+        <label>¿Paso mano de obra total que quiero cobrar? (si sí, poner monto): <input type="number" id="manoObraManual" step="0.01"></label>
+        <label>Opciones (si no paso MO): usar factor rápido = 2.2 (sí/no): <select id="usarFactor">
+            <option value="si">Sí</option>
+            <option value="no">No</option>
+        </select></label>
+        <label>Porcentaje Gastos Taller (default 15%): <input type="number" id="pctGastos" value="15" step="0.01"></label>
+        <label>Porcentaje Ganancia Taller (default 15%): <input type="number" id="pctGanancia" value="15" step="0.01"></label>
+        
+        <h2>4) Porcentajes adicionales (sobre total materiales + MO):</h2>
+        <label>Porcentaje Barnizado: <input type="number" id="pctBarnizado" placeholder="ej. 10" step="0.01"></label>
+        <label>Porcentaje Laqueado: <input type="number" id="pctLaqueado" placeholder="ej. 15" step="0.01"></label>
+        <label>Porcentaje Pintura: <input type="number" id="pctPintura" placeholder="ej. 20" step="0.01"></label>
+        <label>Porcentaje Otros (ej. ensamblaje extra): <input type="number" id="pctOtros" placeholder="ej. 5" step="0.01"></label>
+        
+        <h2>5) Precios fijos para puerta/cajón (opcional):</h2>
+        <label>Precio por puerta: <input type="number" id="precioPuerta" step="0.01"></label>
+        <label>Precio por cajón: <input type="number" id="precioCajon" step="0.01"></label>
+        
+        <button type="button" onclick="calcularPresupuesto()">Calcular Presupuesto</button>
+    </form>
+    
+    <div id="resultado" style="display: none;">
+        <h2>Resultado del Presupuesto</h2>
+        <div id="ticketInterno" style="display: none;">
+            <img src="https://i.imgur.com/g945GKp.jpeg" alt="Logo Amoblamientos K&P" style="max-width: 150px; margin-bottom: 10px;">
+            <h3>Amoblamientos K&P - Presupuesto Interno</h3>
+            <p><strong>Fecha:</strong> <span id="fecha"></span></p>
+            <p><strong>Cliente:</strong> <span id="intCliente"></span></p>
+            <p><strong>Tipo:</strong> <span id="intTipo"></span></p>
+            <p><strong>Medidas:</strong> <span id="intMedidas"></span></p>
+            <p><strong>Material:</strong> <span id="intMaterial"></span></p>
+            <p id="intDetalles"></p>
+            <hr style="border-color: #333333;">
+            <p><strong>Precio Final al Cliente:</strong> <span id="intPrecioFinal"></span></p>
+            <p><strong>Seña 50%:</strong> <span id="intSena"></span></p>
+            <p><strong>Sugerencia:</strong> <span id="intSugerencia"></span></p>
+        </div>
+        <div id="ticketCliente" style="display: none;">
+            <img src="https://i.imgur.com/g945GKp.jpeg" alt="Logo Amoblamientos K&P" style="max-width: 150px; margin-bottom: 10px;">
+            <h3>Amoblamientos K&P - Presupuesto Cliente</h3>
+            <p><strong>Fecha:</strong> <span id="fechaCli"></span></p>
+            <p><strong>Cliente:</strong> <span id="cliCliente"></span></p>
+            <p><strong>Tipo:</strong> <span id="cliTipo"></span></p>
+            <p><strong>Medidas:</strong> <span id="cliMedidas"></span></p>
+            <p><strong>Material:</strong> <span id="cliMaterial"></span></p>
+            <p><strong>Materiales Totales:</strong> <span id="cliMateriales"></span></p>
+            <p><strong>Mano de Obra:</strong> <span id="cliManoObra"></span></p>
+            <p><strong>Precio Final:</strong> <span id="cliPrecioFinal"></span></p>
+        </div>
+        <button onclick="imprimirTicket('interno')">Imprimir Ticket Interno</button>
+        <button onclick="imprimirTicket('cliente')">Imprimir Ticket Cliente</button>
+        <button onclick="descargarPDF('interno')">Descargar PDF Interno</button>
+        <button onclick="descargarPDF('cliente')">Descargar PDF Cliente</button>
+    </div>
+
+    <script>
+        let insumoCounter = 0;
+
+        function agregarInsumo() {
+            insumoCounter++;
+            const container = document.getElementById('insumosDinamicos');
+            const div = document.createElement('div');
+            div.className = 'insumo-item';
+            div.innerHTML = `
+                <input type="text" placeholder="Nombre del insumo" id="insumoNombre${insumoCounter}">
+                <input type="number" placeholder="Precio" step="0.01" id="insumoPrecio${insumoCounter}">
+                <button type="button" class="remove-btn" onclick="removerInsumo(this)">Quitar</button>
+            `;
+            container.appendChild(div);
+        }
+
+        function removerInsumo(btn) {
+            btn.parentElement.remove();
+        }
+
+        function calcularPresupuesto() {
+            // Función auxiliar para validar números
+            function getNumber(id, defaultVal = 0) {
+                const val = parseFloat(document.getElementById(id).value);
+                return isNaN(val) ? defaultVal : val;
+            }
+
+            // Función para formatear números con separadores
+            function formatNumber(num) {
+                return num.toLocaleString('es-ES');
+            }
+
+            // Validar precio placa
+            const precioPlacaStr = document.getElementById('precioPlaca').value.trim();
+            let precioUnidad = 0, cantidad = 0;
+            if (precioPlacaStr) {
+                const parts = precioPlacaStr.replace(/\s/g, '').split(/[×x]/i);
+                if (parts.length === 2) {
+                    precioUnidad = parseFloat(parts[0]) || 0;
+                    cantidad = parseFloat(parts[1]) || 0;
+                } else {
+                    alert('Error: El campo "Precio placa" debe tener formato "precio × cantidad" (ej. 100000 × 2).');
+                    return;
+                }
+            }
+            const costoPlacas = precioUnidad * cantidad;
+
+            // Insumos fijos
+            const insumosFijos = getNumber('tornillos') + getNumber('cazoletas') + getNumber('tapaTornillos') + getNumber('pushOpen') + getNumber('otrosInsumos');
+
+            // Insumos dinámicos
+            let insumosDinamicos = 0;
+            for (let i = 1; i <= insumoCounter; i++) {
+                const precio = getNumber(`insumoPrecio${i}`);
+                insumosDinamicos += precio;
+            }
+
+            // Otros costos
+            const fleteCompra = getNumber('fleteCompra');
+            const diseno = getNumber('diseno');
+            const fleteCliente = getNumber('fleteCliente');
+
+            const materialesTotales = costoPlacas + insumosFijos + insumosDinamicos + fleteCompra + diseno + fleteCliente;
+
+            // Mano de obra
+            const manoObraManual = getNumber('manoObraManual');
+            let manoObra = manoObraManual;
+            if (!manoObraManual && document.getElementById('usarFactor').value === 'si') {
+                manoObra = materialesTotales * 1.0;  // Cambié a 
+            }
+
+            // Porcentajes adicionales
+            const baseParaPct = materialesTotales + manoObra;
+            const extraBarnizado = baseParaPct * (getNumber('pctBarnizado') / 100);
+            const extraLaqueado = baseParaPct * (getNumber('pctLaqueado') / 100);
+            const extraPintura = baseParaPct * (getNumber('pctPintura') / 100);
+            const extraOtros = baseParaPct * (getNumber('pctOtros') / 100);
+            const totalExtras = extraBarnizado + extraLaqueado + extraPintura + extraOtros;
+
+            // Porcentajes estándar
+            const pctGastos = getNumber('pctGastos', 15) / 100;
+            const pctGanancia = getNumber('pctGanancia', 15) / 100;
+
+            // Cálculos
+            const gastosTaller = (materialesTotales + manoObra + totalExtras) * pctGastos;
+            const gananciaTaller = (materialesTotales + manoObra + totalExtras + gastosTaller) * pctGanancia;
+const precioFinal = materialesTotales + manoObra + totalExtras + gastosTaller + gananciaTaller;
+            // Seña y sugerencia (solo para interno)
+            const sena = precioFinal * 0.5;
+            const quedaParaMateriales = sena - materialesTotales;
+            const sugerencia = quedaParaMateriales < 0 ? `Falta ${formatNumber(Math.abs(quedaParaMateriales).toFixed(2))} para cubrir materiales.` : 'La seña cubre los materiales.';
+
+            // Desglose porcentual (solo para interno)
+            const total = precioFinal || 1;
+            const pctMateriales = (materialesTotales / total * 100).toFixed(2);
+            const pctManoObra = ((manoObra + totalExtras) / total * 100).toFixed(2);
+            const pctExtras = (totalExtras / total * 100).toFixed(2);
+            const pctGastosCalc = (gastosTaller / total * 100).toFixed(2);
+            const pctGananciaCalc = (gananciaTaller / total * 100).toFixed(2);
+
+            // Fecha
+            const fecha = new Date().toLocaleDateString('es-ES');
+
+            // Llenar tickets
+            const cliente = document.getElementById('cliente').value || 'N/A';
+            const tipo = document.getElementById('tipo').value;
+            const medidas = document.getElementById('medidas').value;
+            const material = document.getElementById('material').value;
+
+            // Ticket Interno (sin cambios)
+            document.getElementById('fecha').textContent = fecha;
+            document.getElementById('intCliente').textContent = cliente;
+            document.getElementById('intTipo').textContent = tipo;
+            document.getElementById('intMedidas').textContent = medidas;
+            document.getElementById('intMaterial').textContent = material;
+            document.getElementById('intDetalles').innerHTML = `
+                Materiales totales: ${formatNumber(materialesTotales.toFixed(2))}<br>
+                Mano de obra: ${formatNumber(manoObra.toFixed(2))}<br>
+                Extras (barnizado ${getNumber('pctBarnizado')}%, laqueado ${getNumber('pctLaqueado')}%, etc.): ${formatNumber(totalExtras.toFixed(2))}<br>
+                Gastos de taller (${(pctGastos*100).toFixed(2)}%): ${formatNumber(gastosTaller.toFixed(2))}<br>
+                Ganancia taller (${(pctGanancia*100).toFixed(2)}%): ${formatNumber(gananciaTaller.toFixed(2))}<br>
+                Desglose (% sobre total): Materiales ${pctMateriales}%, Mano de obra ${pctManoObra}%, Extras ${pctExtras}%, Gastos ${pctGastosCalc}%, Ganancia ${pctGananciaCalc}%
+            `;
+            document.getElementById('intPrecioFinal').textContent = formatNumber(precioFinal.toFixed(2));
+            document.getElementById('intSena').textContent = formatNumber(sena.toFixed(2));
+            document.getElementById('intSugerencia').textContent = sugerencia;
+
+            // Ticket Cliente (mano de obra incluye todo lo demás)
+            document.getElementById('fechaCli').textContent = fecha;
+            document.getElementById('cliCliente').textContent = cliente;
+            document.getElementById('cliTipo').textContent = tipo;
+            document.getElementById('cliMedidas').textContent = medidas;
+            document.getElementById('cliMaterial').textContent = material;
+            document.getElementById('cliMateriales').textContent = formatNumber(materialesTotales.toFixed(2));
+            // Mano de obra para cliente: incluye base + extras + gastos + ganancia
+            const manoObraCliente = manoObra + totalExtras + gastosTaller + gananciaTaller;
+            document.getElementById('cliManoObra').textContent = formatNumber(manoObraCliente.toFixed(2));
+            // Precio final para cliente: materiales + mano de obra ampliada
+            document.getElementById('cliPrecioFinal').textContent = formatNumber((materialesTotales + manoObraCliente).toFixed(2));
+
+            // Mostrar resultado
+            document.getElementById('resultado').style.display = 'block';
+        }
+
+        function imprimirTicket(tipo) {
+            // Oculta el otro ticket y muestra solo el seleccionado
+            document.getElementById('ticketInterno').style.display = tipo === 'interno' ? 'block' : 'none';
+            document.getElementById('ticketCliente').style.display = tipo === 'cliente' ? 'block' : 'none';
+            window.print();
+        }
+
+        function descargarPDF(tipo) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const ticket = tipo === 'interno' ? document.getElementById('ticketInterno') : document.getElementById('ticketCliente');
+            doc.html(ticket, {
+                callback: function (doc) {
+                    doc.save(`presupuesto-${tipo}.pdf`);
+                },
+                x: 10,
+                y: 10
+            });
+        }
+    </script>
+</body>
+</html>
