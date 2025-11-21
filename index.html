@@ -152,11 +152,7 @@
         <label>Nombre del Cliente: <input type="text" id="cliente" placeholder="Opcional"></label>
         <label>Tipo: <input type="text" id="tipo" required></label>
         <label>Medidas (cm) o m²: ancho x alto x prof / o m²: <input type="text" id="medidas" required></label>
-        <label>Material: <select id="material" required>
-            <option value="melamina">Melamina</option>
-            <option value="pino">Pino</option>
-            <option value="terciado">Terciado</option>
-        </select></label>
+        <label>Material: <input type="text" id="material" placeholder="Ej. Melamina, Pino, etc." required></label>
         <label>Precio placa (unidad) y cantidad (ej. 100000 × 2 o 100000 x 2): <input type="text" id="precioPlaca" placeholder="ej. 100000 × 2" required></label>
         
         <h2>2) Insumos Fijos:</h2>
@@ -193,6 +189,10 @@
         <label>Precio por puerta: <input type="number" id="precioPuerta" step="0.01"></label>
         <label>Precio por cajón: <input type="number" id="precioCajon" step="0.01"></label>
         
+        <h2>6) Cantidad y Descuento:</h2>
+        <label>Cantidad de productos: <input type="number" id="cantidadProductos" value="1" min="1"></label>
+        <label>Descuento (%): <input type="number" id="descuentoPct" step="0.01" placeholder="ej. 10"></label>
+        
         <button type="button" onclick="calcularPresupuesto()">Calcular Presupuesto</button>
     </form>
     
@@ -208,6 +208,8 @@
             <p><strong>Material:</strong> <span id="intMaterial"></span></p>
             <p id="intDetalles"></p>
             <hr style="border-color: #333333;">
+            <p><strong>Precio por Unidad:</strong> <span id="intPrecioUnidad"></span></p>
+            <p><strong>Cantidad:</strong> <span id="intCantidad"></span></p>
             <p><strong>Precio Final al Cliente:</strong> <span id="intPrecioFinal"></span></p>
             <p><strong>Seña 50%:</strong> <span id="intSena"></span></p>
             <p><strong>Sugerencia:</strong> <span id="intSugerencia"></span></p>
@@ -220,9 +222,11 @@
             <p><strong>Tipo:</strong> <span id="cliTipo"></span></p>
             <p><strong>Medidas:</strong> <span id="cliMedidas"></span></p>
             <p><strong>Material:</strong> <span id="cliMaterial"></span></p>
-            <p><strong>Materiales Totales:</strong> <span id="cliMateriales"></span></p>
-            <p><strong>Mano de Obra:</strong> <span id="cliManoObra"></span></p>
-            <p><strong>Precio Final:</strong> <span id="cliPrecioFinal"></span></p>
+            <p><strong>Precio por Unidad:</strong> <span id="cliPrecioUnidad"></span></p>
+            <p><strong>Cantidad:</strong> <span id="cliCantidad"></span></p>
+            <p><strong>Precio Total:</strong> <span id="cliPrecioTotal"></span></p>
+            <p><strong>Seña (50%):</strong> <span id="cliSena"></span></p>
+            <p><strong>Condiciones de Pago:</strong> Se requiere una seña del 50% para cubrir los materiales, la cual no es reembolsable en caso de no realizar el trabajo. El resto del pago se efectuará una vez finalizado el trabajo y entregado.</p>
         </div>
         <button onclick="imprimirTicket('interno')">Imprimir Ticket Interno</button>
         <button onclick="imprimirTicket('cliente')">Imprimir Ticket Cliente</button>
@@ -264,18 +268,18 @@
 
             // Validar precio placa
             const precioPlacaStr = document.getElementById('precioPlaca').value.trim();
-            let precioUnidad = 0, cantidad = 0;
+            let precioUnidadPlaca = 0, cantidadPlaca = 0;
             if (precioPlacaStr) {
                 const parts = precioPlacaStr.replace(/\s/g, '').split(/[×x]/i);
                 if (parts.length === 2) {
-                    precioUnidad = parseFloat(parts[0]) || 0;
-                    cantidad = parseFloat(parts[1]) || 0;
+                    precioUnidadPlaca = parseFloat(parts[0]) || 0;
+                    cantidadPlaca = parseFloat(parts[1]) || 0;
                 } else {
                     alert('Error: El campo "Precio placa" debe tener formato "precio × cantidad" (ej. 100000 × 2).');
                     return;
                 }
             }
-            const costoPlacas = precioUnidad * cantidad;
+            const costoPlacas = precioUnidadPlaca * cantidadPlaca;
 
             // Insumos fijos
             const insumosFijos = getNumber('tornillos') + getNumber('cazoletas') + getNumber('tapaTornillos') + getNumber('pushOpen') + getNumber('otrosInsumos');
@@ -298,7 +302,7 @@
             const manoObraManual = getNumber('manoObraManual');
             let manoObra = manoObraManual;
             if (!manoObraManual && document.getElementById('usarFactor').value === 'si') {
-                manoObra = materialesTotales * 1.0;  // Cambié a 
+                manoObra = materialesTotales * 2.2;  // Factor 2.2 como indicado
             }
 
             // Porcentajes adicionales
@@ -316,15 +320,29 @@
             // Cálculos
             const gastosTaller = (materialesTotales + manoObra + totalExtras) * pctGastos;
             const gananciaTaller = (materialesTotales + manoObra + totalExtras + gastosTaller) * pctGanancia;
-const precioFinal = materialesTotales + manoObra + totalExtras + gastosTaller + gananciaTaller;
+            let precioFinal = materialesTotales + manoObra + totalExtras + gastosTaller + gananciaTaller;
+
+            // Cantidad de productos
+            const cantidadProductos = getNumber('cantidadProductos', 1);
+                       precioFinal *= cantidadProductos;
+
+            // Descuento
+            const descuentoPct = getNumber('descuentoPct');
+            if (descuentoPct > 0) {
+                precioFinal -= precioFinal * (descuentoPct / 100);
+            }
+
+            // Precio por unidad (después de descuento)
+            const precioUnidad = precioFinal / cantidadProductos;
+
             // Seña y sugerencia (solo para interno)
             const sena = precioFinal * 0.5;
-            const quedaParaMateriales = sena - materialesTotales;
+            const quedaParaMateriales = sena - (materialesTotales * cantidadProductos);
             const sugerencia = quedaParaMateriales < 0 ? `Falta ${formatNumber(Math.abs(quedaParaMateriales).toFixed(2))} para cubrir materiales.` : 'La seña cubre los materiales.';
 
             // Desglose porcentual (solo para interno)
             const total = precioFinal || 1;
-            const pctMateriales = (materialesTotales / total * 100).toFixed(2);
+            const pctMateriales = (materialesTotales * cantidadProductos / total * 100).toFixed(2);
             const pctManoObra = ((manoObra + totalExtras) / total * 100).toFixed(2);
             const pctExtras = (totalExtras / total * 100).toFixed(2);
             const pctGastosCalc = (gastosTaller / total * 100).toFixed(2);
@@ -339,36 +357,38 @@ const precioFinal = materialesTotales + manoObra + totalExtras + gastosTaller + 
             const medidas = document.getElementById('medidas').value;
             const material = document.getElementById('material').value;
 
-            // Ticket Interno (sin cambios)
+            // Ticket Interno
             document.getElementById('fecha').textContent = fecha;
             document.getElementById('intCliente').textContent = cliente;
             document.getElementById('intTipo').textContent = tipo;
             document.getElementById('intMedidas').textContent = medidas;
             document.getElementById('intMaterial').textContent = material;
             document.getElementById('intDetalles').innerHTML = `
-                Materiales totales: ${formatNumber(materialesTotales.toFixed(2))}<br>
-                Mano de obra: ${formatNumber(manoObra.toFixed(2))}<br>
+                Materiales totales (por unidad): ${formatNumber(materialesTotales.toFixed(2))}<br>
+                Mano de obra (por unidad): ${formatNumber(manoObra.toFixed(2))}<br>
                 Extras (barnizado ${getNumber('pctBarnizado')}%, laqueado ${getNumber('pctLaqueado')}%, etc.): ${formatNumber(totalExtras.toFixed(2))}<br>
                 Gastos de taller (${(pctGastos*100).toFixed(2)}%): ${formatNumber(gastosTaller.toFixed(2))}<br>
                 Ganancia taller (${(pctGanancia*100).toFixed(2)}%): ${formatNumber(gananciaTaller.toFixed(2))}<br>
+                Cantidad de productos: ${cantidadProductos}<br>
+                Descuento aplicado: ${descuentoPct}%<br>
                 Desglose (% sobre total): Materiales ${pctMateriales}%, Mano de obra ${pctManoObra}%, Extras ${pctExtras}%, Gastos ${pctGastosCalc}%, Ganancia ${pctGananciaCalc}%
             `;
+            document.getElementById('intPrecioUnidad').textContent = formatNumber(precioUnidad.toFixed(2));
+            document.getElementById('intCantidad').textContent = cantidadProductos;
             document.getElementById('intPrecioFinal').textContent = formatNumber(precioFinal.toFixed(2));
             document.getElementById('intSena').textContent = formatNumber(sena.toFixed(2));
             document.getElementById('intSugerencia').textContent = sugerencia;
 
-            // Ticket Cliente (mano de obra incluye todo lo demás)
+            // Ticket Cliente
             document.getElementById('fechaCli').textContent = fecha;
             document.getElementById('cliCliente').textContent = cliente;
             document.getElementById('cliTipo').textContent = tipo;
             document.getElementById('cliMedidas').textContent = medidas;
             document.getElementById('cliMaterial').textContent = material;
-            document.getElementById('cliMateriales').textContent = formatNumber(materialesTotales.toFixed(2));
-            // Mano de obra para cliente: incluye base + extras + gastos + ganancia
-            const manoObraCliente = manoObra + totalExtras + gastosTaller + gananciaTaller;
-            document.getElementById('cliManoObra').textContent = formatNumber(manoObraCliente.toFixed(2));
-            // Precio final para cliente: materiales + mano de obra ampliada
-            document.getElementById('cliPrecioFinal').textContent = formatNumber((materialesTotales + manoObraCliente).toFixed(2));
+            document.getElementById('cliPrecioUnidad').textContent = formatNumber(precioUnidad.toFixed(2));
+            document.getElementById('cliCantidad').textContent = cantidadProductos;
+            document.getElementById('cliPrecioTotal').textContent = formatNumber(precioFinal.toFixed(2));
+            document.getElementById('cliSena').textContent = formatNumber(sena.toFixed(2));
 
             // Mostrar resultado
             document.getElementById('resultado').style.display = 'block';
